@@ -1,13 +1,4 @@
-# import openpyxl
-# wb = openpyxl.load_workbook('company.xlsx')
-# print("files loaded successfully" )
-# sheet = wb['Sheet1']
-# # print(sheet)
-# # wb.create_sheet("nEWSHEET")
-# # print(wb.sheetnames)
-# wb.save("company.xlsx")
 from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
 from bs4 import BeautifulSoup
 from openpyxl import Workbook, load_workbook
 import time
@@ -21,15 +12,24 @@ def scrape_linkedin(company_name, job_keywords, driver):
 
     # Parse search results
     soup = BeautifulSoup(driver.page_source, 'html.parser')
-    profiles = soup.find_all('div', class_='BNeawe UPmit AP7Wnd')
+    search_results = soup.find_all('div', class_='g')
 
     scraped_data = []
-    for profile in profiles:
+    for result in search_results:
         try:
-            name = profile.text.split(' - ')[0]
-            position = profile.text.split(' - ')[1]
-            linkedin_url = profile.find_parent('a')['href']
-            scraped_data.append((name, position, linkedin_url))
+            name_elem = result.find('h3', class_='LC20lb')
+            name_parts = name_elem.text.strip().split(' - ')
+            name = name_parts[0] if name_parts else None
+
+            position_elem = result.find('div', class_='LEwnzc')
+            position_parts = position_elem.text.strip().split(' · ')
+            position = position_parts[1] if position_parts else None
+
+            linkedin_url_elem = result.find('a', href=True)
+            linkedin_url = linkedin_url_elem['href'] if linkedin_url_elem else None
+
+            if name and position and linkedin_url:
+                scraped_data.append((name, position, linkedin_url))
         except Exception as e:
             print(f"Error parsing profile: {e}")
 
@@ -53,6 +53,7 @@ def main():
         print(f"Scraping LinkedIn for {company}...")
         data = scrape_linkedin(company, job_keywords, driver)
         all_data.extend(data)
+        print(f"Found {len(data)} profiles for {company}")
 
     # Close the WebDriver
     driver.quit()
